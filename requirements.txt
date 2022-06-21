@@ -1,0 +1,36 @@
+Things to take into consideration:
+	Has to be simple (JSON/BSON)
+	Has to be simple (Libraries/YEET)
+	Has to be simple (No protocol/Yes protocol)
+
+How to test if scheduler works:
+	- send random data and see if works
+	- test encoding and decoding separately
+
+
+What would my ideal protocol look like:
+HTTP uses plain text for transmission
+MQTT has a packet:
+	[FIXED 1 byte][Remaining(2-4)][variable header][PAYLOAD]
+
+
+
+ROS has:
+	subscribers
+	publishers
+
+	actions
+
+	services
+
+	ROS_MASTER_URI is set by master ; we do not do this, any can run simultaneously
+
+	ROS has TCPROS and UDPROS (NO!, only TCP here!)
+	each ROS NODE has its own XMLRPC server running
+	and each pub-sub connection is different
+	http://wiki.ros.org/ROS/Technical%20Overview
+	shits a bit hard
+
+preliminary idea:
+	[FIXED BYTE][]
+	123({)  125(}) 58(:) 34(")
