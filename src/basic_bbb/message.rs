@@ -53,7 +53,7 @@ impl IPCMessage{
         self.data
     }
 
-    pub fn recv_id(&self)->Option<TaskID>{
+    pub fn rcv_id(&self)->Option<TaskID>{
         self.recv
     }
 
@@ -61,6 +61,23 @@ impl IPCMessage{
         self.snd
     }
 }
+
+
+use crate::basic_bbb::node::comm_channels::ChanMsg;
+impl ChanMsg for IPCMessage{
+    fn send_id(&self)->Option<usize>{
+        self.snd_id()
+    }
+
+    fn recv_id(&self)->Option<usize>{
+        self.rcv_id()
+    }
+
+    fn msg_type(&self)->Option<u8>{
+        Some(self.meta_data.header())
+    }
+}
+
 
 
 

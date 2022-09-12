@@ -9,3 +9,4 @@ edition = "2018"
 bytes = "1"
 crossbeam = "0.8.1"
 bbb_parser = {path="../bbb_parser"}
+simple-log = "1.5.1"

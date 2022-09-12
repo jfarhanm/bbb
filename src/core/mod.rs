@@ -15,11 +15,12 @@ pub struct NodeChannels{
 }
 
 
+// TODO check if handle_listener_array works 
 pub fn run(){
     let mut listener = TcpListener::bind("127.0.0.1:8008").unwrap();
     let (tx,rx) = channel::<TcpStream>();
     std::thread::spawn(move||{
-        handle_listener_thread(rx)
+        handle_listener_array(rx)
     });
     
     for stream in listener.incoming(){
@@ -37,6 +38,15 @@ pub fn run(){
     }
 }
 
+// SOFT TODO : Status for services 
+// SOFT TODO : Multicaller services 
+
+// TODO PRIORITY : On connecting a caller, if the service does not exist the main thread fails.
+//                  - problems caused by this :
+//                      Causes a delay in the main thread; ie if multiple things have to start they
+//                      cannot  do so easily
+//                  - Fix : ?
+// TODO : improve errors 
 // TODO : Explore crossbeam 
 // TODO : Create a manager struct to manage 
 //              - taking data from channels
@@ -64,7 +74,8 @@ pub fn handle_listener_thread(rx:Receiver<TcpStream>){
                 let  id = idmaker.id();
                 if let Ok(mut node_) = node::Node::new().with_id(id).with_stream(stream).register(&service_list){    
                     std::thread::spawn(move||{
-                        node_.run(rxaway,txaway);
+                        let mut chan = node::comm_channels::MpscChan::<IPCMessage>::new(rxaway,txaway);
+                        node_.run(chan);
                     });
                 }
                 datas.push((rxhome,txhome));
@@ -77,31 +88,32 @@ pub fn handle_listener_thread(rx:Receiver<TcpStream>){
     
         
         // Handle Communication 
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
 }
 
 
-
-
-
-
-// Test code  
-pub fn create_node(mut stream:TcpStream,mut rx:Receiver<IPCMessage>,mut tx:Sender<IPCMessage>,id:usize){
-     
+use crate::basic_bbb::node::comm_channels::ChanManagerCArray;
+pub fn handle_listener_array(rx:Receiver<TcpStream>){
+    let mut array_chan = ChanManagerCArray::<IPCMessage>::new();
+    // create joinHandle here 
+    loop{
+        match rx.try_recv(){
+            Ok(stream)=>{
+                if let Ok((mut node_,channel)) = node::Node::from_chan_manager_array(&mut array_chan,stream){    
+                    std::thread::spawn(move||{
+                        node_.run(channel);
+                    });
+                }
+            }
+            Err(e)=>{
+                //println!("Array channel Error {:?}",e);
+            }
+        }
+        array_chan.process_queue();
+    }
 }
+
+
 
 
 
