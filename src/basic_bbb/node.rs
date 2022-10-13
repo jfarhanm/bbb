@@ -514,10 +514,36 @@ impl Node{
             //node_.stream = Some(stream);
             match & mut node_.kind{
                 NodeKind::Caller{service_names,service_ids}=>{
+                    // XXX : Delete 
+                    for m in service_names.iter(){
+                        println!("SERVICE NAMES : {}",m)
+                    }
                     let (res,self_id,srv_id) = manager.add_caller(&service_names).unwrap(); //FIXME : Handle if name does not exist 
                     *service_ids = Some(srv_id);
+                    
+                    
+                    let snd_self_id = u16::to_le_bytes(self_id as u16);
+                    let self_id_lsb = snd_self_id[0];
+                    let self_is_msb = snd_self_id[1];
+
+                    let mut ack_srv_ids:Vec<(u8,u8)> = Vec::new();
+                    for m in service_ids.as_ref().unwrap().iter(){
+                        let tmp:u16 = *m as u16;
+                        // NOTE: Check if this little endian conversion  works properly 
+                        let names:[u8;2] = u16::to_le_bytes(tmp);
+                        println!("ID Names are ( {} , {} )",names[0],names[1]);
+                        ack_srv_ids.push((names[0],names[1]));
+
+                    }
                     conn::ConnHandle::send(
-                        get_reg_caller_ack_protocol(self_id as u8).to_vec(),        // FIXME : The ID sent here is objectively WRONG 
+                    //    get_reg_caller_ack_protocol(self_id as u8).to_vec(),        // FIXME : The ID sent here is objectively WRONG 
+                        generate_reg_caller_ack(
+                            protocol_defs::methods::OK,
+                            protocol_defs::methods::OK_CODE,
+                            self_id_lsb,
+                            self_is_msb,
+                            ack_srv_ids
+                        ),
                         &mut stream         
                        ).unwrap();
 
@@ -643,7 +669,10 @@ impl Node{
 
 
 // TODO : MOVE ELSEWHERE 
+// NOTE : This is not the right protocol ; change it 
 use bbb_parser::protocol_defs::{self,methods::*};
+
+#[deprecated]
 pub fn get_reg_caller_ack_protocol(id:u8)->[u8;10]{
    return [protocol_defs::START,REG_CALLER_ACK,OK,OK_CODE,id,0,0x69,0x69,protocol_defs::CR,protocol_defs::CR]; 
 }
@@ -652,5 +681,29 @@ pub fn get_reg_caller_ack_protocol(id:u8)->[u8;10]{
 pub fn get_reg_service_ack_protocol(id:u8)->[u8;8]{
    return [protocol_defs::START,REG_SERVICE_ACK,OK,OK_CODE,id,0,protocol_defs::CR,protocol_defs::CR]; 
 }
+
+pub fn generate_reg_caller_ack(status:u8,status_code:u8,caller_id_lsb:u8,caller_id_msb:u8,service_id_list:Vec<(u8,u8)>)->Vec<u8>{
+    let mut buf:Vec<u8> = vec![protocol_defs::START, REG_CALLER_ACK,status,status_code,caller_id_lsb,caller_id_msb];
+    for id in service_id_list{
+        buf.push(id.0);
+        buf.push(id.1);
+    }
+    buf.push(0xFF);
+    buf.push(0xFF);
+    buf.push(protocol_defs::CR);
+    buf.push(protocol_defs::CR);
+    buf
+}
+
+
+
+
+
+
+
+
+
+
+
 
 

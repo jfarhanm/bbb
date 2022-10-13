@@ -38,6 +38,8 @@ pub fn run(){
     }
 }
 
+// PRIORITY : Reverify and create a proper spec for endianness of service IDs and the likes 
+// TODO PRIORITY : Create a proper REG_CALLER_ACK
 // SOFT TODO : Status for services 
 // SOFT TODO : Multicaller services 
 
