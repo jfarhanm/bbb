@@ -325,9 +325,8 @@ pub mod comm_channels{
 
         pub fn process_queue(&mut self){
             while let Some(msg) = self.array.as_ref().pop(){
-                let id = msg.recv_id().expect("Receive ID not provided");
-                let id_snd = msg.send_id().unwrap();
                 let msg_type = msg.msg_type().unwrap();
+                let id_snd = msg.send_id().unwrap();
                 
                 match msg_type{
                     bbb_parser::protocol_defs::methods::STOP_CALLER =>{
@@ -340,6 +339,7 @@ pub mod comm_channels{
                         println!("Stopped Service {}",id_snd);
                     }
                     _ =>{        
+                        let id = msg.recv_id().expect("Receive ID not provided");
                         println!("Sender : {} , Receiver :{}",id_snd,id);
                         self.receivers.get(&id).unwrap().send(msg).expect("Cannot send to channel");
                     }
