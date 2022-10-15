@@ -309,14 +309,22 @@ pub mod comm_channels{
         // It will , in the worst case take O(N) Time to remove a service from this list
         // and that time will be consumed from time allocated to transfer message between strings
         pub fn remove_service(&mut self,index:usize)->Result<(),()>{
+            // Removes index from list (indices=>)
             if let Some(_) = self.receivers.remove(&index){
                 let mut name = String::new();
                 for (key,value) in self.channel_names.iter(){
                     if index == *value{
-                        let name = key.clone();
+                        name = key.clone();
+                        println!("Removed name is {}",name);
                     }
                 }
-                self.channel_names.remove(&name);
+                
+                println!("Name out of loop is {}",name);
+                if let Some(z) = self.channel_names.remove(&name){
+                    println!("Removed {:?}",z);
+                }else{
+                    println!("Not Removed");;
+                }
                 Ok(())
             }else{
                 Err(())
@@ -335,17 +343,32 @@ pub mod comm_channels{
                     }
 
                     bbb_parser::protocol_defs::methods::STOP_SERVICE =>{
+                        // XXX
+                        for (key,value) in self.channel_names.iter(){
+                            println!("Names of Services before removal{}, {}",key,value);
+                        }
+                       println!("ID SND {}",id_snd); 
                         self.remove_service(id_snd).expect("A service with this ID does not exist");
+
                         println!("Stopped Service {}",id_snd);
+                        let id = msg.recv_id().expect("Receive ID not provided");
+                        
+                        // NOTE : This is just for the Receiver to stop blocking for message
+                        println!("STOP_SERVICE Sender : {} , Receiver :{}",id_snd,id); // XXX : Print 
+                        self.receivers.get(&id).unwrap().send(msg).expect("Cannot send to channel");
+                    
+                        for (key,value) in self.channel_names.iter(){
+                            println!("Names of Services After removal{}, {}",key,value);
+                        }
                     }
                     _ =>{        
                         let id = msg.recv_id().expect("Receive ID not provided");
-                        println!("Sender : {} , Receiver :{}",id_snd,id);
+                        println!("Sender : {} , Receiver :{}",id_snd,id); // XXX : Print 
                         self.receivers.get(&id).unwrap().send(msg).expect("Cannot send to channel");
                     }
                 }
 
-
+            
             }
         }
 
@@ -587,11 +610,13 @@ impl Node{
         match &self.kind{
             NodeKind::Caller{..} => {
                 println!("Running as caller");
-                self.run_as_caller(chan)
+                self.run_as_caller(chan);
+                println!("Ended Run as Caller");
             }
             NodeKind::Service(_) => {
                 println!("Running as service");
-                self.run_as_service(chan)
+                self.run_as_service(chan);
+                println!("Ended Run as Service")
             }
         }
         println!("Unmatched");
@@ -606,12 +631,11 @@ impl Node{
             if let conn::ConnResult::Ok(frame_meta) = conn_.handle_connection(&mut stream){  
                 println!("\n From caller \n {:#?}",frame_meta);         // XXX
                 let header = frame_meta.header();
-                // PRIORITY : Extract information from data 
-                // Result type represents the id of the receiver
+                // The only things sent here are CALL or STOPCALLER , Status bits are used to
+                // represent the service ID
                 let current_recv_id = frame_meta.result_as_usize();  
                 let msg = message::IPCMessage::new(frame_meta,self.id,current_recv_id,conn_.consume());
                 chan.send(msg).expect("Caller : Receiving channel does not work");
-                
                 if header == STOP_CALLER{  // NOTE : STOPGAP SOLUTION 
                     break;
                 }
@@ -621,7 +645,7 @@ impl Node{
             let reply = chan.recv().unwrap();
             conn::ConnHandle::send(reply.consume(),&mut stream).expect("Send Failed for Caller ");      // send reply here 
         }
-        println!("Graceful Shutdown!");
+        println!("Graceful Shutdown Caller!");
     }
 
     pub fn run_as_service(&mut self, chan:impl BBBChan<message::IPCMessage>){
@@ -634,10 +658,15 @@ impl Node{
             println!("Data received");
             conn::ConnHandle::send(data.consume(),&mut stream).expect("Send Failed for Service");      // send request here to service process 
             if let conn::ConnResult::Ok(frame_meta) = conn_.handle_connection(&mut stream){
+                let header = frame_meta.header();
                 let msg = message::IPCMessage::new(frame_meta, self.id,recv_id,conn_.consume());
                 chan.send(msg).expect("Service : Receiving channel does not work");
+                if header == STOP_SERVICE{
+                    break;
+                }
             }
         }
+        println!("Graceful ShutDown Service!");
     }
     
     

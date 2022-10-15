@@ -112,6 +112,7 @@ pub fn handle_listener_array(rx:Receiver<TcpStream>){
             }
         }
         array_chan.process_queue();
+        std::thread::sleep(std::time::Duration::from_micros(50));
     }
 }
 
